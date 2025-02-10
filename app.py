@@ -113,18 +113,6 @@ def get_youtube_info(channel_url):
                     channel_id = search_response['items'][0]['id']['channelId']
                 else:
                     raise Exception(f"Could not find channel for username: {username}")
-        elif 'user/' in channel_url:
-            # Legacy format using /user/username
-            username = channel_url.split('user/')[1].split('/')[0]
-            request = youtube.channels().list(
-                part='id',
-                forUsername=username
-            )
-            response = request.execute()
-            if response.get('items'):
-                channel_id = response['items'][0]['id']
-            else:
-                raise Exception(f"Could not find channel for username: {username}")
         else:
             raise Exception("Invalid channel URL format")
         
