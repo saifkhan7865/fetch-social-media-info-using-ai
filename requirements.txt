@@ -9,5 +9,9 @@ google-auth-oauthlib==1.0.0
 tweepy==4.14.0
 tiktokapi==0.7.6
 tiktok-api-python==0.1.7
+rich==13.9.4
+markdown-it-py==3.0.0
+mdurl==0.1.2
+pygments==2.19.1
 # For unofficial TikTok API (commented out for future reference)
 # tiktok-app-api==0.1.6
