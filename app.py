@@ -98,7 +98,7 @@ def get_youtube_info(channel_url):
             # Try legacy lookup using forUsername (may fail for custom handles)
             request = youtube.channels().list(
                 part='id',
-                forHandle=username
+                forHandle='@'+username
             )
             response = request.execute()
         
