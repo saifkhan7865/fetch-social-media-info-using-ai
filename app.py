@@ -93,6 +93,8 @@ def get_youtube_info(channel_url):
             username = channel_url.split('@')[1].split('/')[0]
             
             print('this is the user name that we received', username)
+            
+            st.write('this is the user name that we received', username)
             # Try legacy lookup using forUsername (may fail for custom handles)
             request = youtube.channels().list(
                 part='id',
