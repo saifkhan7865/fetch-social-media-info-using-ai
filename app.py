@@ -18,11 +18,12 @@ from datetime import datetime, timedelta
 import requests
 from unsplash.api import Api
 from unsplash.auth import Auth
+from apify_client import ApifyClient
 # Load environment variables
 load_dotenv()
 
 # Initialize Instagram loader
-L = instaloader.Instaloader()
+client = ApifyClient(os.getenv('APIFY_API_TOKEN'))
 
 def get_instagram_info(username):
     try:
@@ -30,54 +31,53 @@ def get_instagram_info(username):
         username = username.lstrip('@')
         
         print('searching for this username = ', username)
-        # Get profile information
-        profile = instaloader.Profile.from_username(L.context, username)
         
-        # Fetch posts and analyze hashtags
+        # Prepare the Actor input
+        run_input = {
+            "directUrls": [f"https://www.instagram.com/{username}/"],
+            "resultsType": "posts",
+            "resultsLimit": 1,  # Limit to last 20 posts for performance
+            "searchType": "user",
+            "searchLimit": 1,
+            "addParentData": True,
+        }
+        
+        # Run the Actor and wait for it to finish
+        run = client.actor("shu8hvrXbJbY3Eb9W").call(run_input=run_input)
+        
+        # Initialize counters and data structures
         hashtags = {}
         post_types = {'image': 0, 'video': 0}
         total_likes = 0
         total_comments = 0
         post_count = 0
+        profile_data = None
         
-        for post in profile.get_posts():
-            post_count += 1
-            total_likes += post.likes
-            total_comments += post.comments
-            
-            # Count post types
-            if post.is_video:
-                post_types['video'] += 1
-            else:
-                post_types['image'] += 1
-            
-            # Collect hashtags
-            for tag in post.caption_hashtags:
-                hashtags[tag] = hashtags.get(tag, 0) + 1
-            
-            # Limit to last 20 posts for performance
-            if post_count >= 20:
-                break
+        # Process the results
+        for item in client.dataset(run["defaultDatasetId"]).iterate_items():
+            username = item.get('username', '')
+            bio = item.get('biography', '')
+            followerCount = item.get('followersCount')
+            followsCount = item.get('followsCount')
+            postsCount = item.get('postsCount')
+            post_count = postsCount
+            profile_data = {
+                'username': username,
+                'fullName': item.get('fullName', ''),
+                'biography': bio,
+                'followersCount': followerCount,
+                'followsCount': followsCount,
+                'postsCount': postsCount
+            }
+                
         
-        # Calculate engagement rate
-        avg_engagement = (total_likes + total_comments) / (post_count * profile.followers) * 100 if post_count > 0 and profile.followers > 0 else 0
-        
-        info = {
-            'username': profile.username,
-            'full_name': profile.full_name,
-            'bio': profile.biography,
-            'followers': profile.followers,
-            'following': profile.followees,
-            'total_posts': profile.mediacount,
-            'is_private': profile.is_private,
-            'analyzed_posts': post_count,
-            'post_types': post_types,
-            'top_hashtags': dict(sorted(hashtags.items(), key=lambda x: x[1], reverse=True)[:10]),
-            'avg_engagement_rate': round(avg_engagement, 2)
-        }
-        return info
+        if not profile_data:
+            return "Error: Could not fetch profile data"
+
+        return profile_data
     except Exception as e:
         return f"Error fetching Instagram profile: {str(e)}"
+    
 
 def get_youtube_info(channel_url):
     try:
@@ -328,29 +328,10 @@ if st.button('Analyze Profile') and profile_url:
                 if isinstance(info, dict):
                     st.subheader('Profile Information')
                     st.write(f"Username: {info['username']}")
-                    st.write(f"Full Name: {info['full_name']}")
-                    st.write(f"Bio: {info['bio']}")
-                    st.write(f"Followers: {info['followers']:,}")
-                    st.write(f"Following: {info['following']:,}")
-                    st.write(f"Total Posts: {info['total_posts']:,}")
-                    st.write(f"Private Account: {'Yes' if info['is_private'] else 'No'}")
-                    
-                    if not info['is_private']:
-                        st.subheader('Content Analysis')
-                        st.write(f"Analyzed Posts: Last {info['analyzed_posts']} posts")
-                        st.write(f"Average Engagement Rate: {info['avg_engagement_rate']}%")
-                        st.write("Content Mix:")
-                        st.write(f"- Images: {info['post_types']['image']}")
-                        st.write(f"- Videos: {info['post_types']['video']}")
-                        
-                        st.subheader('Top Hashtags')
-                        for tag, count in info['top_hashtags'].items():
-                            st.write(f"#{tag}: {count} posts")
-                        
-                        st.subheader('Digital Product Recommendations')
-                        with st.spinner('Generating recommendations...'):
-                            recommendations = get_product_recommendations(info, openai_api_key)
-                            st.write(recommendations)
+                    st.write(f"Bio: {info['biography']}")
+                    st.write(f"Followers: {info['followersCount']:,}")
+                    st.write(f"Following: {info['followsCount']:,}")
+                    st.write(f"Total Posts: {info['postsCount']:,}")
                 else:
                     st.error(info)
                     
